@@ -36,4 +36,4 @@
   - `format='mixed'` 파라미터를 추가하여 판다스 엔진이 다양한 시간 포맷을 자동 추론 및 방어하도록 조치.
 
 ---
-👉 [상세 TIL & 트러블슈팅 정리 노트 (Notion)](https://www.notion.so/4-RE-36c3b284a47680c8946fdf96529ed340)
+👉 [요일별 상세 TIL & 트러블슈팅 정리 노트(Notion)](https://www.notion.so/Portfolio-36d3b284a476809e83ebd797b6bbc549)
