@@ -6,16 +6,19 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
 
-file_name = "ticket_price_data.csv"
+# 💡 쇠말뚝 박기: analysis.py가 있는 폴더 주소를 알아내서 그 옆에 있는 엑셀을 찾게 함
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+file_name = os.path.join(BASE_DIR, "ticket_price_data.csv")
 
-# 예외 처리: 데이터 파일이 존재하는지 확인
+# 파일이 있는지 검사할 때도 file_name 사용
 if not os.path.exists(file_name):
-    print(f"❌ '{file_name}' 파일이 없습니다. 수집기(collect.py)를 먼저 실행하세요.")
-    exit()
+    print("❌ 'ticket_price_data.csv' 파일이 없습니다. 수집기(collect.py)를 먼저 실행하세요.")
+    exit() # 프로그램 종료
+
 
 # 2. 데이터 로드 및 전처리
-df = pd.read_csv(file_name)
-df['Date'] = pd.to_datetime(df['Date'])
+df = pd.read_csv(file_name, encoding='utf-8-sig')
+df['Date'] = pd.to_datetime(df['Date'], format='mixed')
 df['DayNum'] = df['Date'].dt.dayofweek
 
 # 3. 요일별 평균 시세 계산

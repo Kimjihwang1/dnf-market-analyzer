@@ -9,7 +9,7 @@ plt.rcParams['font.family'] = 'Malgun Gothic'
 # 마이너스 기호 깨짐 방지
 plt.rcParams['axes.unicode_minus'] = False
 
-API_KEY = "############"
+API_KEY = "#######"
 ITEM_NAME = "닳아버린 순례의 증표"
 
 print("=======================================================")
@@ -64,17 +64,20 @@ if "rows" in auction_data:
         })
         
     
-    # ------------------ 파일 저장 로직 ------------------
+  # ------------------ 파일 저장 로직 ------------------
     df = pd.DataFrame(empty_data)
     
-    file_name ="ticket_price_data.csv"
+    # 💡 핵심 수정: collect.py 파일이 있는 곳의 정확한 주소를 알아냅니다.
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # 무조건 collect.py 옆에 있는 파일에만 적도록 주소를 강제로 묶어버립니다.
+    file_name = os.path.join(BASE_DIR, "ticket_price_data.csv")
     
     if not os.path.exists(file_name):
-        df.to_csv(file_name,index=False, mode= 'w',encoding= "utf-8-sig")
+        df.to_csv(file_name, index=False, mode='w', encoding="utf-8-sig")
     else:
-        df.to_csv(file_name,index=False,mode='a',header=False,encoding="utf-8-sig" )
+        df.to_csv(file_name, index=False, mode='a', header=False, encoding="utf-8-sig")
         
-    print(f"\n 데이터가 '{file_name}'에 성공적으로 적재 되었습니다")
+    print(f"\n✅ 데이터가 '{file_name}'에 성공적으로 적재 되었습니다")
             
         
 else:
