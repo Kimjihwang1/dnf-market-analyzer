@@ -1,0 +1,14 @@
+# API
+src/config.py
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Env
+venv/
+.venv/
+
+# VSCode
+.vscode/
