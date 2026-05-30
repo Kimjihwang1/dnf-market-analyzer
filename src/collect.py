@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
-from DNF_ITEM_ANALYZE.src.config import API_KEY
+from config import API_KEY
 
 # 윈도우 환경 기준 한글 폰트 설정 (맥은 'AppleGothic' 사용)
 plt.rcParams['font.family'] = 'Malgun Gothic'
