@@ -3,6 +3,8 @@ import requests
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+
+from datetime import datetime
 from config import API_KEY
 
 # 윈도우 환경 기준 한글 폰트 설정 (맥은 'AppleGothic' 사용)
@@ -10,79 +12,112 @@ plt.rcParams['font.family'] = 'Malgun Gothic'
 # 마이너스 기호 깨짐 방지
 plt.rcParams['axes.unicode_minus'] = False
 
-ITEM_NAME = "닳아버린 순례의 증표"
 
+# =========================
+# 2. 여러 아이템 설정
+# =========================
+
+ITEM_LIST =[
+    "닳아버린 순례의 증표",
+    "광휘의 소울 결정",
+    "에픽 소울 결정"
+    
+]
 print("=======================================================")
 
-#2. Phase 1: 아이템 이름으로 고유 ID 찾기
-print(f"[{ITEM_NAME}] 고유 ID를 서버에 요청합니다...")
+all_data =[]
 
-search_url = f"https://api.neople.co.kr/df/items?itemName={ITEM_NAME}&wordType=match&apikey={API_KEY}"
+# =========================
+# 3. 아이템 반복 수집
+# =========================
 
-response = requests.get(search_url)  #requests.get() 은 모듈 안의 함수를 . 으로 접근!
+for ITEM_NAME in ITEM_LIST:
+    print(f"[{ITEM_NAME}] 데이터 수집 시작")
+    
+    search_url = f"https://api.neople.co.kr/df/items?itemName={ITEM_NAME}&wordType=match&apikey={API_KEY}"
+    response = requests.get(search_url)  #requests.get() 은 모듈 안의 함수를 . 으로 접근!
+    search_data = response.json()
 
-search_data = response.json()
-
-print(search_data)
-
-if "rows" in search_data and len(search_data["rows"]) > 0:
+    if "rows" not in search_data or len(search_data["rows"]) ==0:
+        print(f"{ITEM_NAME}을 찾을 수 없음")
+        continue
+    
     item_id = search_data["rows"][0]["itemId"]
-    print(f"아이템 ID 획득 성공: {item_id}\n")
-else:
-    print("아이템을 찾을수 없음")
+
+    auction_url =f"https://api.neople.co.kr/df/auction-sold?itemId={item_id}&limit=10&apikey={API_KEY}"
+    auction_response =requests.get(auction_url)
+    auction_data =auction_response.json()
+    
+    if "rows" not in auction_data:
+        print(f"{ITEM_NAME} 거래 데이터 없음")
+        continue
+    
+    # =========================
+    # 4. 데이터 파싱 + 날짜시간 추가
+    # =========================
+    for row in auction_data["rows"]:
+        sold_date = row.get("soldDate")
+        price = row.get("unitPrice", 0)
+        count = row.get("count", 0)
+
+        all_data.append({
+            "Item": ITEM_NAME,
+            "Date": sold_date,
+            "Price": price,
+            "Count": count,
+            "CrawledAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+
+# =========================
+# 5. DataFrame 생성
+# =========================
+COLUMNS = ["Item", "Date", "Price", "Count", "CrawledAt"]
+
+df = pd.DataFrame(all_data, columns=COLUMNS)
+
+df = df.drop_duplicates(subset=["Item", "Date", "Price", "Count"])
+
+if df.empty:
+    print("❌ 수집된 데이터 없음")
     exit()
 
-print("=======================================================")
-    
-#3. Phase 2: 고유 ID로 최근 거래 내역 가져오기
-print("최근 경매장 거래 내역을 불러옵니다...")
+# =========================
+# 6. 최고가 / 최저가 계산
+# =========================
+summary = df.groupby("Item")["Price"].agg(["max", "min"])
 
-auction_url =f"https://api.neople.co.kr/df/auction-sold?itemId={item_id}&limit=10&apikey={API_KEY}"
+print("\n==============================")
+print("📊 아이템별 최고가 / 최저가")
+print("==============================")
 
-auction_response = requests.get(auction_url)
-auction_data = auction_response.json()
+for item, row in summary.iterrows():
+    print(f"{item}")
+    print(f"  🔺 최고가: {row['max']:,} 골드")
+    print(f"  🔻 최저가: {row['min']:,} 골드\n")
 
-print("=======================================================")
+# =========================
+# 7. CSV 저장
+# =========================
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+file_name = os.path.join(BASE_DIR, "data", "ticket_price_data.csv")
 
-#4. Phase 3: 데이터 파싱 및 CSV 누적 저장
-
-if "rows" in auction_data:
-    print("---최근 거래 내역 TOP 10---")
-    
-    empty_data =[]
-    
-    for idx,row in enumerate(auction_data["rows"]):
-        sold_date = row.get("soldDate","날짜 없음")
-        price = row.get("unitPrice",0)
-        count = row.get("count",0)
-        
-        print(f"{idx +1}. 거래일시: {sold_date} | 단가:{price:,}골드 | 수량: {count}개")
-        
-        empty_data.append({
-            "Date" : sold_date,
-            "Price" : price,
-            "Count" : count
-        })
-        
-    
-  # ------------------ 파일 저장 로직 ------------------
-    df = pd.DataFrame(empty_data)
-    
-    # 💡 핵심 수정: collect.py 파일이 있는 곳의 정확한 주소를 알아냅니다.
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # 무조건 collect.py 옆에 있는 파일에만 적도록 주소를 강제로 묶어버립니다.
-    file_name = os.path.join(BASE_DIR,"data", "ticket_price_data.csv")
-    
-    if not os.path.exists(file_name):
-        df.to_csv(file_name, index=False, mode='w', encoding="utf-8-sig")
-    else:
-        df.to_csv(file_name, index=False, mode='a', header=False, encoding="utf-8-sig")
-        
-    print(f"\n✅ 데이터가 '{file_name}'에 성공적으로 적재 되었습니다")
-            
-        
+if not os.path.exists(file_name):
+    df.to_csv(file_name, index=False, encoding="utf-8-sig")
 else:
-    print("거래 내역을 불러오는데 실패 했습니다")
+    df.to_csv(file_name, index=False, mode="a", header=False, encoding="utf-8-sig")
+
+print(f"✅ 데이터 저장 완료: {file_name}")
+    
+
+
+
+
+
+
+
+
+
+
 
 
 

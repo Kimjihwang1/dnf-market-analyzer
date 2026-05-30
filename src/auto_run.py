@@ -25,7 +25,7 @@ def run_collect():
 # 1시간 주기 세팅 (API 차단 방지 및 실데이터 누적용)
 schedule.every(1).hours.do(run_collect)
 
-print("🚀 던파 경매장 자동 수집 프로그램이 시작되었습니다. (10초 주기)")
+print("🚀 던파 경매장 자동 수집 프로그램이 시작되었습니다. (1시간 주기)")
 print("정지하려면 터미널에서 Ctrl + C를 누르세요.\n")
 
 while True:

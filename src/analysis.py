@@ -1,51 +1,129 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 
-# 1. 그래프 한글 깨짐 방지 설정
+# ======================================================
+# 1. 그래프 설정
+# ======================================================
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
 
-# 💡 쇠말뚝 박기: analysis.py가 있는 폴더 주소를 알아내서 그 옆에 있는 엑셀을 찾게 함
+# ======================================================
+# 2. 파일 로드
+# ======================================================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 file_name = os.path.join(BASE_DIR, "data", "ticket_price_data.csv")
 
-# 파일이 있는지 검사할 때도 file_name 사용
 if not os.path.exists(file_name):
-    print("❌ 'ticket_price_data.csv' 파일이 없습니다. 수집기(collect.py)를 먼저 실행하세요.")
-    exit() # 프로그램 종료
+    print("❌ 데이터 파일 없음")
+    exit()
 
-
-# 2. 데이터 로드 및 전처리
 df = pd.read_csv(file_name, encoding='utf-8-sig')
-df['Date'] = pd.to_datetime(df['Date'], format='mixed')
+
+print(df["Item"].value_counts())
+print(df["Date"].min(), df["Date"].max())
+
+# ======================================================
+# 3. 전처리
+# ======================================================
+df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+df = df.dropna(subset=['Date'])
+
 df['DayNum'] = df['Date'].dt.dayofweek
 
-# 3. 요일별 평균 시세 계산
-avg_price = df.groupby('DayNum')['Price'].mean()
+if "CrawledAt" in df.columns:
+    df = df.drop(columns=["CrawledAt"])
 
-# 숫자로 된 인덱스를 한글 요일로 변경
-day_labels = {0: '월', 1: '화', 2: '수', 3: '목', 4: '금', 5: '토', 6: '일'}
-avg_price.index = [day_labels[x] for x in avg_price.index]
+df = df.sort_values(["Item", "Date"])
 
-print("--- 요일별 평균 데이터 ---")
-print(avg_price)
+# ======================================================
+# 📊 4. 인기 아이템 TOP (거래량)
+# ======================================================
+popular_items = df.groupby("Item")["Count"].sum().sort_values(ascending=False)
 
-# 4. 시각화 (바 차트)
-plt.figure(figsize=(10, 6))
-#plt.bar(avg_price.index, avg_price.values, color='steelblue')
-plt.plot(avg_price.index, avg_price.values, marker ='o', color ='red', linewidth =2,markersize= 8)
+top_item = popular_items.index[0]
+top_item_count = popular_items.iloc[0]
 
-plt.title('요일별 닳아버린 순례의 증표 평균 시세 분석', fontsize=15)
-plt.xlabel('요일', fontsize=12)
-plt.ylabel('평균 가격 (골드)', fontsize=12)
+# ======================================================
+# 📈 5. 급등 TOP 3 (핵심 수정 부분)
+# ======================================================
+df["PrevPrice"] = df.groupby("Item")["Price"].shift(1)
+df["ChangeRate"] = (df["Price"] - df["PrevPrice"]) / df["PrevPrice"] * 100
 
-plt.ylim(240000,290000)
+top_change = (
+    df.dropna()
+    .groupby("Item")["ChangeRate"]
+    .max()
+    .sort_values(ascending=False)
+    .head(3)
+)
 
-# Y축 천 단위 콤마 포맷
-current_values = plt.gca().get_yticks()
-plt.gca().set_yticklabels(['{:,.0f}'.format(x) for x in current_values])
+# ======================================================
+# 📉 6. 이동평균 (추세)
+# ======================================================
+df["MA3"] = df.groupby("Item")["Price"].transform(
+    lambda x: x.rolling(3).mean()
+)
 
-plt.grid(True,linestyle ='--' , alpha =0.6)
+# ======================================================
+# 📊 7. 요일별 평균
+# ======================================================
+grouped = df.groupby(['Item', 'DayNum'])['Price'].mean().unstack()
+
+grouped = grouped.reindex(columns=[0,1,2,3,4,5,6])
+grouped.columns = ['월','화','수','목','금','토','일']
+
+grouped = grouped.ffill().bfill()
+
+# ======================================================
+# 📊 8. 시각화
+# ======================================================
+fig, ax = plt.subplots(figsize=(12, 6))
+
+for item in grouped.index:
+    ax.plot(
+        grouped.columns,
+        grouped.loc[item],
+        marker='o',
+        linewidth=2,
+        label=item
+    )
+
+# y축 포맷
+ax.yaxis.set_major_formatter(
+    mtick.FuncFormatter(lambda x, _: f'{x:,.0f}')
+)
+
+# ======================================================
+# 📌 9. 그래프 안 정보 표시 (핵심)
+# ======================================================
+info_text = f"""📊 TOP 거래 아이템
+- {top_item} ({top_item_count:,})
+
+📈 급등 TOP 3
+"""
+
+for item, value in top_change.items():
+    info_text += f"- {item} ({value:.2f}%)\n"
+
+ax.text(
+    0.02, 0.98,
+    info_text,
+    transform=ax.transAxes,
+    verticalalignment='top',
+    fontsize=10,
+    bbox=dict(boxstyle="round", facecolor="white", alpha=0.85)
+)
+
+# ======================================================
+# 10. 꾸미기
+# ======================================================
+ax.set_title("아이템별 요일 평균 시세 + 분석 대시보드", fontsize=15)
+ax.set_xlabel("요일", fontsize=12)
+ax.set_ylabel("평균 가격 (골드)", fontsize=12)
+
+ax.grid(True, linestyle='--', alpha=0.6)
+ax.legend()
 
 plt.show()
