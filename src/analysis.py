@@ -37,6 +37,15 @@ if "CrawledAt" in df.columns:
 
 df = df.sort_values(["Item", "Date"])
 
+print("\n=== 최신 날짜 ===")
+print(df["Date"].max())
+
+print("\n=== 요일 분포 ===")
+print(df["Date"].dt.dayofweek.value_counts().sort_index())
+
+print("\n=== 마지막 20개 데이터 ===")
+print(df.tail(20))
+
 # ======================================================
 # 📊 4. 인기 아이템 TOP (거래량)
 # ======================================================

@@ -62,7 +62,7 @@ for ITEM_NAME in ITEM_LIST:
 
         all_data.append({
             "Item": ITEM_NAME,
-            "Date": sold_date,
+            "Date": datetime.now().strftime("%Y-%m-%d"),
             "Price": price,
             "Count": count,
             "CrawledAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
